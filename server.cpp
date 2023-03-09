@@ -6,25 +6,10 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <assert.h>
+#include <cstring>
 
 using namespace std;
-
-static void do_something(int connfd){
-    char rbuf[64] = {};
-    ssize_t n = read(connfd, rbuf, sizeof(rbuf) - 1);
-    if(n < 0){
-        perror("read");
-        return;
-    }
-    printf("Client says: %s \n", rbuf);
-
-    char wbuf[] = "world";
-    n = write(connfd, wbuf, sizeof(wbuf));
-    if(n < 0){
-        perror("write");
-        return;
-    }
-}
+const size_t k_max_msg = 4096;
 
 static int32_t read_full(int fd, char *buf, size_t n){
     while (n > 0){
@@ -52,6 +37,39 @@ static int32_t write_all(int fd, const char *buf, size_t n){
     return 0;
 }
 
+static int32_t one_request(int connfd){
+    char rbuf[4 + k_max_msg + 1];
+    errno = 0;
+    int32_t err = read_full(connfd, rbuf, 4);
+    if(err){
+        if(errno == 0){
+            perror("EOF");
+        } else {
+            perror("read");
+        }
+        return err;
+    }
+    uint32_t len = 0;
+    memcpy(&len, rbuf, 4);
+    if (len > k_max_msg){
+        fprintf(stderr, "Message too long: %u \n", len);
+        return -1;
+    }
+    err = read_full(connfd, &rbuf[4], len); // Request body
+    if(err){
+        perror("read() error");
+        return err;
+    }
+    rbuf[4 + len] = '\0';
+    printf("Received: %s \n", &rbuf[4]);
+    const char reply[] = "world";
+    uint32_t reply_len = strlen(reply);
+    memcpy(rbuf, &reply_len, 4);
+    memcpy(&rbuf[4], reply, reply_len);
+    return write_all(connfd, rbuf, 4 + reply_len);
+}
+
+
 int main() {
     int val = 1;
     int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -78,7 +96,7 @@ int main() {
         if(connfd < 0){
             continue;
         }
-        do_something(connfd);
+        one_request(connfd);
         close(connfd);
     }
 }
