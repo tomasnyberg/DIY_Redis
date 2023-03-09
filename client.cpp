@@ -22,6 +22,12 @@ int main() {
         perror("connect");
         exit(1);
     }
+    char wbuf[] = "hello";
+    ssize_t x = write(fd, wbuf, sizeof(wbuf));
+    if(x < 0){
+        perror("write");
+        return 0;
+    }
     char rbuf[64] = {};
     ssize_t n = read(fd, rbuf, sizeof(rbuf) - 1);
     if(n < 0){

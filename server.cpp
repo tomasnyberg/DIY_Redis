@@ -43,6 +43,7 @@ int main() {
         perror("listen()");
         exit(1);
     }
+    // cout << "Server stared listening on port 1234 \n";
     while(true){
         struct sockaddr_in client_addr = {};
         socklen_t socklen = sizeof(client_addr);
@@ -50,6 +51,7 @@ int main() {
         if(connfd < 0){
             continue;
         }
+        do_something(connfd);
         close(connfd);
     }
 }
