@@ -11,6 +11,18 @@ using namespace std;
 static void do_something(int connfd){
     char rbuf[64] = {};
     ssize_t n = read(connfd, rbuf, sizeof(rbuf) - 1);
+    if(n < 0){
+        perror("read");
+        return;
+    }
+    printf("Client says: %s \n", rbuf);
+
+    char wbuf[] = "world";
+    n = write(connfd, wbuf, sizeof(wbuf));
+    if(n < 0){
+        perror("write");
+        return;
+    }
 }
 
 int main() {
@@ -38,5 +50,6 @@ int main() {
         if(connfd < 0){
             continue;
         }
+        close(connfd);
     }
 }
