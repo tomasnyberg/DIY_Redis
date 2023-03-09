@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <assert.h>
 
 using namespace std;
 
@@ -22,6 +23,18 @@ static void do_something(int connfd){
     if(n < 0){
         perror("write");
         return;
+    }
+}
+
+static int32_t read_full(int fd, char *buf, size_t n){
+    while (n > 0){
+        ssize_t rv = read(fd, buf, n);
+        if (rv <= 0){
+            return -1;
+        }
+        assert((size_t)rv <= n);
+        n -= (size_t) rv;
+        buf += rv;
     }
 }
 
