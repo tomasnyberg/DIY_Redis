@@ -1,20 +1,28 @@
-CC=g++
-CFLAGS=-c -Wall
-LDFLAGS=
-SOURCES=server.cpp client.cpp util.cpp
-OBJECTS=$(SOURCES:.cpp=.o)
-EXECUTABLES=server client
+BUILD_DIR = build
+CC = g++
+CFLAGS = -c -Wall
+LDFLAGS =
+SOURCES = server.cpp client.cpp util.cpp
+OBJECTS = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SOURCES))
+EXECUTABLES = $(BUILD_DIR)/server $(BUILD_DIR)/client
 
-all: $(SOURCES) $(EXECUTABLES)
+all: $(EXECUTABLES)
 
-server: server.o util.o
-	$(CC) $(LDFLAGS) server.o util.o -o server
+# Build the server executable
+$(BUILD_DIR)/server: $(BUILD_DIR)/server.o $(BUILD_DIR)/util.o
+	$(CC) $(LDFLAGS) $^ -o $@
 
-client: client.o util.o
-	$(CC) $(LDFLAGS) client.o util.o -o client
+# Build the client executable
+$(BUILD_DIR)/client: $(BUILD_DIR)/client.o $(BUILD_DIR)/util.o
+	$(CC) $(LDFLAGS) $^ -o $@
 
-.cpp.o:
+# Compile the C++ source files
+$(BUILD_DIR)/%.o: %.cpp
 	$(CC) $(CFLAGS) $< -o $@
 
+# Remove all object files and executables
 clean:
-	rm -f $(OBJECTS) $(EXECUTABLES)
+	rm -rf $(BUILD_DIR)
+
+# Create the build directory
+$(shell mkdir -p $(BUILD_DIR))
