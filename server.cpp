@@ -70,7 +70,12 @@ int main() {
         if(connfd < 0){
             continue;
         }
-        one_request(connfd);
+        while(true){
+            int32_t err = one_request(connfd);
+            if(err){
+                break;
+            }
+        }
         close(connfd);
     }
 }

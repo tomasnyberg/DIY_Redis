@@ -62,5 +62,7 @@ int main() {
         perror("connect");
         exit(1);
     }
-    query(fd, "hello");
+    query(fd, "hello1");
+    query(fd, "hello2");
+    query(fd, "hello3");
 }
