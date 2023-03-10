@@ -26,3 +26,11 @@ clean:
 
 # Create the build directory
 $(shell mkdir -p $(BUILD_DIR))
+
+# Run the server executable
+run-server: $(BUILD_DIR)/server
+	$(BUILD_DIR)/server
+
+# Run the client executable
+run-client: $(BUILD_DIR)/client
+	$(BUILD_DIR)/client
