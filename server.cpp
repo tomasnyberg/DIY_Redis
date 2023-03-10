@@ -8,8 +8,23 @@
 #include <assert.h>
 #include <cstring>
 #include "util.h"
+#include <fcntl.h>
 
 using namespace std;
+
+static void fd_set_nb(int fd){
+    errno = 0;
+    int flags = fcntl(fd, F_GETFL, 0);
+    if(flags == -1){
+        perror("fcntl");
+        exit(1);
+    }
+    flags |= O_NONBLOCK;
+    if(fcntl(fd, F_SETFL, flags) == -1){
+        perror("fcntl");
+        exit(1);
+    }
+}
 
 static int32_t one_request(int connfd){
     char rbuf[4 + k_max_msg + 1];
