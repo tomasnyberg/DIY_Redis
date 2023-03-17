@@ -8,6 +8,8 @@
 #include <assert.h>
 #include <cstring>
 #include <fcntl.h>
+#include <vector>
+#include <poll.h>
 #include "util.h"
 
 using namespace std;
@@ -95,20 +97,57 @@ int main() {
         perror("listen()");
         exit(1);
     }
-    cout << "Server started listening on port 1234 \n";
-    while(true){
-        struct sockaddr_in client_addr = {};
-        socklen_t socklen = sizeof(client_addr);
-        int connfd = accept(fd, (struct sockaddr *)&client_addr, &socklen);
-        if(connfd < 0){
-            continue;
+    vector<Conn *> fd2conn;
+    fd_set_nb(fd); // Set non-blocking on the fd (poll should be our only way to wait for events)
+    vector<struct pollfd> poll_args;
+    // cout << "Server started listening on port 1234 \n";
+    while(true) {
+        poll_args.clear();
+        struct pollfd pfd = {fd, POLLIN, 0};
+        poll_args.push_back(pfd);
+        for (Conn *conn : fd2conn){
+            if(!conn) continue;
+            struct pollfd pfd = {};
+            pfd.fd = conn->fd;
+            pfd.events = (conn->state == STATE_REQ) ? POLLIN : POLLOUT;
+            pfd.events |= POLLERR;
+            poll_args.push_back(pfd);
         }
-        while(true){
-            int32_t err = one_request(connfd);
-            if(err){
-                break;
+    }
+    int rv = poll(poll_args.data(), poll_args.size(), 1000);
+    if (rv < 0){
+        perror("poll");
+        exit(1);
+    }
+    // Process active connections
+    for(size_t i = 1; i < poll_args.size(); i++){
+        if(poll_args[i].revents){
+            Conn *conn = fd2conn[poll_args[i].fd];
+            // connection_io(conn); // TODO
+            if(conn->state == STATE_END){
+                fd2conn[conn->fd] = nullptr;
+                close(conn->fd);
+                free(conn);
             }
         }
-        close(connfd);
     }
+    if(poll_args[0].revents){
+        // accept_new_conn(fd2conn, fd);
+    }
+    return 0;
+    // while(true){
+    //     struct sockaddr_in client_addr = {};
+    //     socklen_t socklen = sizeof(client_addr);
+    //     int connfd = accept(fd, (struct sockaddr *)&client_addr, &socklen);
+    //     if(connfd < 0){
+    //         continue;
+    //     }
+    //     while(true){
+    //         int32_t err = one_request(connfd);
+    //         if(err){
+    //             break;
+    //         }
+    //     }
+    //     close(connfd);
+    // }
 }
