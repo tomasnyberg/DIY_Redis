@@ -209,7 +209,6 @@ int main() {
     vector<struct pollfd> poll_args;
     cout << "Server started listening on port 1234 \n";
     while(true) {
-        cout << "Waiting for events \n";
         poll_args.clear();
         struct pollfd pfd = {fd, POLLIN, 0};
         poll_args.push_back(pfd);
