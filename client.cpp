@@ -1,33 +1,35 @@
 // #include  <bits/stdc++.h>
-#include <string>
-#include <iostream>
-#include <sys/types.h> 
-#include <sys/socket.h>
 #include <arpa/inet.h>
-#include <unistd.h>
 #include <assert.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <cstring>
+#include <iostream>
+#include <string>
+
 #include "util.h"
 using namespace std;
 
 const size_t k_max_msg = 4096;
 
-static int32_t query(int fd, const char *text){
-    uint32_t len = (uint32_t) strlen(text);
-    if (len > k_max_msg){
+static int32_t query(int fd, const char *text) {
+    uint32_t len = (uint32_t)strlen(text);
+    if (len > k_max_msg) {
         return -1;
     }
     char wbuf[4 + k_max_msg];
     memcpy(wbuf, &len, 4);
     memcpy(&wbuf[4], text, len);
-    if(int32_t err = write_all(fd, wbuf, 4 + len)){
+    if (int32_t err = write_all(fd, wbuf, 4 + len)) {
         return err;
     }
     char rbuf[4 + k_max_msg + 1];
     errno = 0;
     int32_t err = read_full(fd, rbuf, 4);
-    if(err){
-        if(errno == 0){
+    if (err) {
+        if (errno == 0) {
             perror("EOF");
         } else {
             perror("read");
@@ -35,12 +37,12 @@ static int32_t query(int fd, const char *text){
         return err;
     }
     memcpy(&len, rbuf, 4);
-    if(len > k_max_msg){
+    if (len > k_max_msg) {
         fprintf(stderr, "Message too long: %u \n", len);
         return -1;
     }
     err = read_full(fd, &rbuf[4], len); // Request body
-    if(err){
+    if (err) {
         perror("read() error");
         return err;
     }
