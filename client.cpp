@@ -35,7 +35,7 @@ static int32_t send_req(int fd, const std::vector<std::string> &cmd) {
     }
 
     char wbuf[4 + k_max_msg];
-    memcpy(&wbuf[0], &len, 4);  // assume little endian
+    memcpy(&wbuf[0], &len, 4); // assume little endian
     uint32_t n = cmd.size();
     memcpy(&wbuf[4], &n, 4);
     size_t cur = 8;
@@ -63,7 +63,7 @@ static int32_t read_res(int fd) {
     }
 
     uint32_t len = 0;
-    memcpy(&len, rbuf, 4);  // assume little endian
+    memcpy(&len, rbuf, 4); // assume little endian
     if (len > k_max_msg) {
         msg("too long");
         return -1;
@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
     struct sockaddr_in addr = {};
     addr.sin_family = AF_INET;
     addr.sin_port = ntohs(1234);
-    addr.sin_addr.s_addr = ntohl(INADDR_LOOPBACK);  // 127.0.0.1
+    addr.sin_addr.s_addr = ntohl(INADDR_LOOPBACK); // 127.0.0.1
     int rv = connect(fd, (const struct sockaddr *)&addr, sizeof(addr));
     if (rv) {
         die("connect");
