@@ -9,6 +9,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -17,11 +18,18 @@
 using namespace std;
 
 const size_t k_max_msg = 4096;
+const size_t k_max_args = 1024;
 
 enum {
     STATE_REQ = 0,
     STATE_RES = 1,
     STATE_END = 2,
+};
+
+enum {
+    RES_OK = 0,
+    RES_ERR = 1,
+    RES_NX = 2,
 };
 
 struct Conn {
@@ -110,6 +118,88 @@ static void state_res(Conn *conn) {
     }
 }
 
+static int32_t parse_req(const uint8_t *data, size_t len, vector<string> &out) {
+    if (len < 4) {
+        return -1;
+    }
+    uint32_t n = 0;
+    memcpy(&n, &data[0], 4);
+    if (n > k_max_args) {
+        return -1;
+    }
+    size_t pos = 4;
+    while (n--) {
+        if (pos + 4 > len) {
+            return -1;
+        }
+        uint32_t sz = 0;
+        memcpy(&sz, &data[pos], 4);
+        if (pos + 4 + sz > len) {
+            return -1;
+        }
+        out.push_back(string((char *)&data[pos + 4], sz));
+        pos += 4 + sz;
+    }
+    if (pos != len) {
+        return -1; // We have trailing stuff in our message
+    }
+    return 0;
+}
+
+static map<string, string> g_map;
+
+static uint32_t do_get(const vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
+    if (!g_map.count(cmd[1])) {
+        return RES_NX;
+    }
+    string &val = g_map[cmd[1]];
+    assert(val.size() <= k_max_msg);
+    memcpy(res, val.data(), val.size());
+    *reslen = (uint32_t)val.size();
+    return RES_OK;
+}
+
+static uint32_t do_set(const vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
+    (void)res;
+    (void)reslen;
+    g_map[cmd[1]] = cmd[2];
+    return RES_OK;
+}
+
+static uint32_t do_del(const vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
+    (void)res;
+    (void)reslen;
+    g_map.erase(cmd[1]);
+    return RES_OK;
+}
+
+static bool cmd_is(const string &cmd, const char *str) {
+    return cmd.size() == strlen(str) && memcmp(cmd.data(), str, cmd.size()) == 0;
+}
+
+static int32_t do_request(
+    const uint8_t *req, uint32_t reqlen,
+    uint32_t *rescode, uint8_t *res, uint32_t *reslen) {
+    vector<string> cmd;
+    if (0 != parse_req(req, reqlen, cmd)) {
+        perror("parse_req");
+        return -1;
+    }
+    if (cmd.size() == 2 && cmd_is(cmd[0], "get")) {
+        *rescode = do_get(cmd, res, reslen);
+    } else if (cmd.size() == 3 && cmd_is(cmd[0], "set")) {
+        *rescode = do_set(cmd, res, reslen);
+    } else if (cmd.size() == 3 && cmd_is(cmd[0], "del")) {
+        *rescode = do_del(cmd, res, reslen);
+    } else {
+        *rescode = RES_ERR;
+        const char *msg = "unknown command";
+        strcpy((char *)res, msg);
+        *reslen = strlen(msg);
+    }
+    return 0;
+}
+
 static bool try_one_request(Conn *conn) {
     // Try to parse a request from buffer
     if (conn->rbuf_size < 4) {
@@ -125,12 +215,17 @@ static bool try_one_request(Conn *conn) {
     if (4 + len > conn->rbuf_size) {
         return false; // Not enough data, retry later
     }
-    printf("client says: %.*s\n", len, &conn->rbuf[4]);
-    // Echo response
-    memcpy(&conn->wbuf[0], &len, 4);
-    memcpy(&conn->wbuf[4], &conn->rbuf[4], len);
-    conn->wbuf_size = 4 + len;
-
+    uint32_t rescode = 0;
+    uint32_t wlen = 0;
+    int32_t err = do_request(&conn->rbuf[4], len, &rescode, &conn->wbuf[4 + 4], &wlen);
+    if (err) {
+        conn->state = STATE_END;
+        return false;
+    }
+    wlen += 4;
+    memcpy(&conn->wbuf[4], &wlen, 4);
+    memcpy(&conn->wbuf[4 + 4 + wlen], &rescode, 4);
+    conn->wbuf_size = 4 + wlen;
     // Remove the request from the buffer
     size_t remain = conn->rbuf_size - (4 + len);
     if (remain) {
@@ -139,7 +234,7 @@ static bool try_one_request(Conn *conn) {
     conn->rbuf_size = remain;
     conn->state = STATE_RES;
     state_res(conn);
-    return (conn->state == STATE_REQ);
+    return conn->state == STATE_REQ;
 }
 
 static bool try_fill_buffer(Conn *conn) {
