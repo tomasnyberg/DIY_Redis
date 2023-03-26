@@ -173,8 +173,8 @@ static uint32_t do_del(const vector<string> &cmd, uint8_t *res, uint32_t *reslen
     return RES_OK;
 }
 
-static bool cmd_is(const string &cmd, const char *str) {
-    return cmd.size() == strlen(str) && memcmp(cmd.data(), str, cmd.size()) == 0;
+static bool cmd_is(const std::string &word, const char *cmd) {
+    return 0 == strcasecmp(word.c_str(), cmd);
 }
 
 static int32_t do_request(
@@ -189,7 +189,7 @@ static int32_t do_request(
         *rescode = do_get(cmd, res, reslen);
     } else if (cmd.size() == 3 && cmd_is(cmd[0], "set")) {
         *rescode = do_set(cmd, res, reslen);
-    } else if (cmd.size() == 3 && cmd_is(cmd[0], "del")) {
+    } else if (cmd.size() == 2 && cmd_is(cmd[0], "del")) {
         *rescode = do_del(cmd, res, reslen);
     } else {
         *rescode = RES_ERR;
@@ -206,7 +206,7 @@ static bool try_one_request(Conn *conn) {
         return false;
     }
     uint32_t len = 0;
-    memcpy(&len, conn->rbuf, 4);
+    memcpy(&len, &conn->rbuf[0], 4);
     if (len > k_max_msg) {
         fprintf(stderr, "Message too long: %u \n", len);
         conn->state = STATE_END;
@@ -223,8 +223,8 @@ static bool try_one_request(Conn *conn) {
         return false;
     }
     wlen += 4;
-    memcpy(&conn->wbuf[4], &wlen, 4);
-    memcpy(&conn->wbuf[4 + 4 + wlen], &rescode, 4);
+    memcpy(&conn->wbuf[0], &wlen, 4);
+    memcpy(&conn->wbuf[4], &rescode, 4);
     conn->wbuf_size = 4 + wlen;
     // Remove the request from the buffer
     size_t remain = conn->rbuf_size - (4 + len);
