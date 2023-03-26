@@ -33,4 +33,4 @@ run-server: $(BUILD_DIR)/server
 
 # Run the client executable
 run-client: $(BUILD_DIR)/client
-	$(BUILD_DIR)/client
+	$(BUILD_DIR)/client $(ARGS)
