@@ -163,22 +163,35 @@ static int32_t parse_req(const uint8_t *data, size_t len, vector<string> &out) {
 
 static map<string, string> g_map;
 
-static uint32_t do_get(const vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
-    if (!g_map.count(cmd[1])) {
+static bool entry_eq(HNode *lhs, HNode *rhs) {
+    struct Entry *le = container_of(lhs, struct Entry, node);
+    struct Entry *re = container_of(rhs, struct Entry, node);
+    return lhs->hcode == rhs->hcode && le->key == re->key;
+}
+
+static uint64_t str_hash(const uint8_t *data, size_t len) {
+    uint32_t h = 0x811C9DC5;
+    for (size_t i = 0; i < len; i++) {
+        h = (h + data[i]) * 0x01000193;
+    }
+    return h;
+}
+
+static uint32_t do_get(vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
+    Entry key;
+    key.key.swap(cmd[1]);
+    key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+    HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
+    if(!node) {
         return RES_NX;
     }
-    string &val = g_map[cmd[1]];
+    const string &val = container_of(node, Entry, node)->val;
     assert(val.size() <= k_max_msg);
     memcpy(res, val.data(), val.size());
     *reslen = (uint32_t)val.size();
     return RES_OK;
 }
 
-static bool entry_eq(HNode *lhs, HNode *rhs) {
-    struct Entry *le = container_of(lhs, struct Entry, node);
-    struct Entry *re = container_of(rhs, struct Entry, node);
-    return lhs->hcode == rhs->hcode && le->key == re->key;
-}
 
 static uint32_t do_set(const vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
     (void)res;
