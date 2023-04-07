@@ -27,11 +27,18 @@ def run_command(cmd):
     return result.stdout.decode('utf-8')
 
 
-with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+res = ""
+count = 0
+with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
     # Submit each command to the executor and store the future object in a list
     futures = [executor.submit(run_command, command)
-               for command in generate_random_commands(10)]
+               for command in generate_random_commands(1000)]
 
     # Wait for all futures to complete and print their output
     for future in concurrent.futures.as_completed(futures):
-        print(future.result())
+        count += 1
+        if count % 100 == 0:
+            print(count)
+        res += future.result() + "\n"
+    
+print(res)
