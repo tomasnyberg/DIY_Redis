@@ -42,6 +42,49 @@ struct Conn {
     uint8_t wbuf[4 + k_max_msg];
 };
 
+struct HNode {
+    HNode *next = NULL;
+    uint64_t hcode = 0;
+};
+
+struct HTable {
+    HNode **tab = NULL;
+    size_t mask = 0;
+    size_t size = 0;
+    static void h_init(HTable *htab, size_t n) {
+        assert(n > 0 && ((n - 1) & n)); // Check power of two
+        htab->tab = (HNode **)calloc(n, sizeof(HNode *));
+        htab->mask = n - 1;
+        htab->size = 0;
+    }
+
+    static void h_insert(HTable *htab, HNode *node){
+        size_t pos = node->hcode & htab->mask;
+        HNode *next = htab->tab[pos];
+        node->next = next;
+        htab->tab[pos] = node;
+        htab->size++;
+    }
+
+    static HNode **h_lookup(HTable *htab, HNode *key, bool(*cmp) (HNode *, HNode *)){
+        if(!htab->tab) return NULL;
+        size_t pos = key->hcode & htab->mask;
+        HNode **from = &htab->tab[pos];
+        while(*from){
+            if(cmp(*from, key)) return from;
+            from = &(*from)->next;
+        }
+        return NULL;
+    }
+
+    static HNode *h_detach(HTable *htab, HNode **from){
+        HNode *node = *from;
+        *from = node->next;
+        htab->size--;
+        return node;
+    }
+};
+
 static void fd_set_nb(int fd) {
     errno = 0;
     int flags = fcntl(fd, F_GETFL, 0);
