@@ -2,14 +2,14 @@ BUILD_DIR = build
 CC = g++
 CFLAGS = -c -Wall
 LDFLAGS =
-SOURCES = server.cpp client.cpp util.cpp
+SOURCES = server.cpp client.cpp util.cpp hashtable.cpp
 OBJECTS = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SOURCES))
 EXECUTABLES = $(BUILD_DIR)/server $(BUILD_DIR)/client
 
 all: $(EXECUTABLES)
 
 # Build the server executable
-$(BUILD_DIR)/server: $(BUILD_DIR)/server.o $(BUILD_DIR)/util.o
+$(BUILD_DIR)/server: $(BUILD_DIR)/server.o $(BUILD_DIR)/util.o $(BUILD_DIR)/hashtable.o
 	$(CC) $(LDFLAGS) $^ -o $@
 
 # Build the client executable
