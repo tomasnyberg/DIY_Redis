@@ -38,6 +38,11 @@ enum {
 };
 
 enum {
+    ERR_UNKNOWN = 1,
+    ERR_2BIG = 2,
+};
+
+enum {
     SER_NIL = 0,
     SER_ERR = 1,
     SER_STR = 2,
@@ -275,26 +280,30 @@ static bool try_one_request(Conn *conn) {
     if (4 + len > conn->rbuf_size) {
         return false; // Not enough data, retry later
     }
-    uint32_t rescode = 0;
-    uint32_t wlen = 0;
-    int32_t err = do_request(&conn->rbuf[4], len, &rescode, &conn->wbuf[4 + 4], &wlen);
-    if (err) {
+    vector<string> cmd;
+    if (0 != parse_req(&conn->rbuf[4], len, cmd)){
+        printf("bad req");
         conn->state = STATE_END;
         return false;
     }
-    wlen += 4;
+    string out;
+    do_request(cmd, out);
+    if(4 + out.size() > k_max_msg){
+        out.clear();
+        out_err(out, ERR_2BIG, "Response is too big");
+    }
+    uint32_t wlen = (uint32_t)out.size();
     memcpy(&conn->wbuf[0], &wlen, 4);
-    memcpy(&conn->wbuf[4], &rescode, 4);
-    conn->wbuf_size = 4 + wlen;
-    // Remove the request from the buffer
-    size_t remain = conn->rbuf_size - (4 + len);
-    if (remain) {
-        memmove(conn->rbuf, &conn->rbuf[4 + len], remain);
+    memcpy(&conn->wbuf[4], out.data(), out.size());
+    conn->wbuf_size = 4+wlen;
+    size_t remain = conn->rbuf_size - 4 - len;
+    if(remain){
+        memmove(conn->rbuf, &conn->rbuf[4+len], remain);
     }
     conn->rbuf_size = remain;
     conn->state = STATE_RES;
     state_res(conn);
-    return conn->state == STATE_REQ;
+    return conn->state == STATE_REQ; // This continnues the outer loop if the request was fully processed, otherwise we do this again
 }
 
 static bool try_fill_buffer(Conn *conn) {
