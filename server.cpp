@@ -182,7 +182,7 @@ static uint32_t do_get(vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
     key.key.swap(cmd[1]);
     key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
     HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
-    if(!node) {
+    if (!node) {
         return RES_NX;
     }
     const string &val = container_of(node, Entry, node)->val;
@@ -192,19 +192,27 @@ static uint32_t do_get(vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
     return RES_OK;
 }
 
-
-static uint32_t do_set(const vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
+static uint32_t do_set(vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
     (void)res;
     (void)reslen;
-    g_map[cmd[1]] = cmd[2];
+    Entry key;
+    key.key.swap(cmd[1]);
+    key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+    HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
+    if (node) {
+        container_of(node, Entry, node)->val.swap(cmd[2]);
+    } else {
+        Entry *ent = new Entry();
+        ent->key.swap(key.key);
+        ent->node.hcode = key.node.hcode;
+        ent->val.swap(cmd[2]);
+        hm_insert(&g_data.db, &ent->node);
+    }
     return RES_OK;
 }
 
 static uint32_t do_del(const vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
-    (void)res;
-    (void)reslen;
-    g_map.erase(cmd[1]);
-    return RES_OK;
+    throw runtime_error("Not implemented");
 }
 
 static bool cmd_is(const std::string &word, const char *cmd) {
