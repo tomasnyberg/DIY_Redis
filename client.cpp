@@ -87,6 +87,81 @@ static int32_t read_res(int fd) {
     return 0;
 }
 
+static int32_t on_response(const uint8_t *data, size_t size){
+    if(size < 1){
+        msg("Bad response");
+        return -1;
+    }
+    switch(data[0]){
+        case SER_NIL:
+            if(size < 1 + 8){
+                msg("Bad response");
+                return -1;
+            }
+            {
+                int32_t code = 0;
+                uint32_t len = 0;
+                memcpy(&code, &data[1], 4);
+                memcpy(&len, &data[1 + 4], 4);
+                if(size < 1 + 8 + len){
+                    msg("Bad response");
+                    return -1;
+                }
+                printf("(err) &d %.*s\n", code, len, &data[1 + 8]);
+                return 1 + 8 + len;
+            }
+        case SER_STR:
+            if(size < 1 + 4){
+                msg("Bad response");
+                return -1;
+            }
+            {
+                uint32_t len = 0;
+                memcpy(&len, &data[1 + 4], 4);
+                if(size < 1 + 4 + len){
+                    msg("Bad response");
+                    return -1;
+                }
+                printf("(str) &d %.*s\n", len, &data[1 + 8]);
+                return 1 + 4 + len;
+            }
+        case SER_INT:
+            if(size < 1 + 8){
+                msg("Bad response");
+                return -1;
+            }
+            {
+                int64_t val = 0;
+                memcpy(&val, &data[1], 8);
+                printf("(int) %ld\n", val);
+                return 1 + 8;
+            }
+        case SER_ARR:
+            if(size < 1 + 4){
+                msg("Bad response");
+                return -1;
+            }
+            {
+                uint32_t len = 0;
+                memcpy(&len, &data[1], 4);
+                printf("(arr) len=%u\n", len);
+                size_t arr_bytes = 1 + 4;
+                for(uint32_t i = 0; i < len; ++i){
+                    int32_t rv = on_response(&data[arr_bytes], size - arr_bytes);
+                    if(rv < 0){
+                        return rv;
+                    }
+                    arr_bytes += (size_t)rv;
+                }
+                printf("(arr) end\n");
+                return (int32_t)arr_bytes;
+            }
+        default:
+            msg("Bad response");
+            return -1;
+    }
+}
+
 int main(int argc, char **argv) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
