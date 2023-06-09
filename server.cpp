@@ -211,8 +211,18 @@ static uint32_t do_set(vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
     return RES_OK;
 }
 
-static uint32_t do_del(const vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
-    throw runtime_error("Not implemented");
+static uint32_t do_del(vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
+    (void)res;
+    (void)reslen;
+    Entry key;
+    key.key.swap(cmd[1]);
+    key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+    HNode *node = hm_pop(&g_data.db, &key.node, &entry_eq);
+    if (node) {
+        delete container_of(node, Entry, node);
+    }
+    return RES_OK;
 }
 
 static bool cmd_is(const std::string &word, const char *cmd) {
