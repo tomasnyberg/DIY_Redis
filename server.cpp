@@ -70,6 +70,35 @@ static struct {
     HMap db;
 } g_data;
 
+static void out_nil(string &out){
+    out.push_back(SER_NIL);
+}
+
+static void out_str(string &out, const string &val){
+    out.push_back(SER_STR);
+    uint32_t len = (uint32_t) val.size();
+    out.append((char *)&len, 4);
+    out.append(val);
+}
+
+static void out_int(string &out, int64_t val){
+    out.push_back(SER_INT);
+    out.append((char *)&val, 8);
+}
+
+static void out_err(std::string &out, int32_t code, const std::string &msg) {
+    out.push_back(SER_ERR);
+    out.append((char *)&code, 4);
+    uint32_t len = (uint32_t)msg.size();
+    out.append((char *)&len, 4);
+    out.append(msg);
+}
+
+static void out_arr(string &out, uint32_t n){
+    out.push_back(SER_ARR);
+    out.append((char *) &n, 4);
+}
+
 static void fd_set_nb(int fd) {
     errno = 0;
     int flags = fcntl(fd, F_GETFL, 0);
@@ -190,77 +219,86 @@ static uint64_t str_hash(const uint8_t *data, size_t len) {
     return h;
 }
 
-static uint32_t do_get(vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
+static void h_scan(HTab *tab, void (*f) (HNode *, void*), void *arg){
+    if(tab->size == 0) return;
+    for(size_t i = 0; i < tab->mask + 1; ++i){
+        HNode *node = tab->tab[i];
+        while(node) {
+            f(node, arg);
+            node = node->next;
+        }
+    }
+}
+
+static void cb_scan(HNode *node, void *arg){
+    string &out = *(string *)arg;
+    out_str(out, container_of(node, Entry, node)->key);
+}
+
+static void do_keys(vector<string> &cmd, string &out){
+    (void) cmd;
+    out_arr(out, (uint32_t) hm_size(&g_data.db));
+    h_scan(&g_data.db.ht1, &cb_scan, &out);
+    h_scan(&g_data.db.ht2, &cb_scan, &out);
+}
+
+static void do_get(vector<string> &cmd, string &out) {
     Entry key;
     key.key.swap(cmd[1]);
     key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
     HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
     if (!node) {
-        return RES_NX;
+        return out_nil(out);
     }
+
     const string &val = container_of(node, Entry, node)->val;
-    assert(val.size() <= k_max_msg);
-    memcpy(res, val.data(), val.size());
-    *reslen = (uint32_t)val.size();
-    return RES_OK;
+    out_str(out, val);
 }
 
-static uint32_t do_set(vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
-    (void)res;
-    (void)reslen;
+static void do_set(vector<string> &cmd, string &out) {
     Entry key;
     key.key.swap(cmd[1]);
     key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
     HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
-    if (node) {
+    if(node){
         container_of(node, Entry, node)->val.swap(cmd[2]);
     } else {
-        Entry *ent = new Entry();
-        ent->key.swap(key.key);
-        ent->node.hcode = key.node.hcode;
-        ent->val.swap(cmd[2]);
-        hm_insert(&g_data.db, &ent->node);
+        Entry *entry = new Entry;
+        entry->key.swap(key.key);
+        entry->val.swap(cmd[2]);
+        entry->node.hcode = key.node.hcode;
+        hm_insert(&g_data.db, &entry->node);
     }
-    return RES_OK;
+    return out_nil(out);
 }
 
-static uint32_t do_del(vector<string> &cmd, uint8_t *res, uint32_t *reslen) {
-    (void)res;
-    (void)reslen;
+static void do_del(vector<string> &cmd, string &out) {
     Entry key;
     key.key.swap(cmd[1]);
-    key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
-
+    key.node.hcode = str_hash((uint8_t *) key.key.data(), key.key.size());
     HNode *node = hm_pop(&g_data.db, &key.node, &entry_eq);
-    if (node) {
+    if(node){
         delete container_of(node, Entry, node);
     }
-    return RES_OK;
+    return out_int(out, node ? 1:0);
 }
 
 static bool cmd_is(const std::string &word, const char *cmd) {
     return 0 == strcasecmp(word.c_str(), cmd);
 }
 
-static int32_t do_request(
-    const uint8_t *req, uint32_t reqlen,
-    uint32_t *rescode, uint8_t *res, uint32_t *reslen) {
-    vector<string> cmd;
-    if (0 != parse_req(req, reqlen, cmd)) {
-        perror("parse_req");
-        return -1;
-    }
-    if (cmd.size() == 2 && cmd_is(cmd[0], "get")) {
-        *rescode = do_get(cmd, res, reslen);
+static int32_t do_request(vector<string> &cmd, string &out) {
+    if (cmd.size() == 1 && cmd_is(cmd[0], "keys")) {
+        do_keys(cmd, out);
+    } else if (cmd.size() == 2 && cmd_is(cmd[0], "get")) {
+        do_get(cmd, out);
     } else if (cmd.size() == 3 && cmd_is(cmd[0], "set")) {
-        *rescode = do_set(cmd, res, reslen);
+        do_set(cmd, out);
     } else if (cmd.size() == 2 && cmd_is(cmd[0], "del")) {
-        *rescode = do_del(cmd, res, reslen);
+        do_del(cmd, out);
     } else {
-        *rescode = RES_ERR;
-        const char *msg = "unknown command";
-        strcpy((char *)res, msg);
-        *reslen = strlen(msg);
+        out_err(out, ERR_UNKNOWN, "Unknown cmd");
     }
     return 0;
 }
@@ -281,24 +319,24 @@ static bool try_one_request(Conn *conn) {
         return false; // Not enough data, retry later
     }
     vector<string> cmd;
-    if (0 != parse_req(&conn->rbuf[4], len, cmd)){
+    if (0 != parse_req(&conn->rbuf[4], len, cmd)) {
         printf("bad req");
         conn->state = STATE_END;
         return false;
     }
     string out;
     do_request(cmd, out);
-    if(4 + out.size() > k_max_msg){
+    if (4 + out.size() > k_max_msg) {
         out.clear();
         out_err(out, ERR_2BIG, "Response is too big");
     }
     uint32_t wlen = (uint32_t)out.size();
     memcpy(&conn->wbuf[0], &wlen, 4);
     memcpy(&conn->wbuf[4], out.data(), out.size());
-    conn->wbuf_size = 4+wlen;
+    conn->wbuf_size = 4 + wlen;
     size_t remain = conn->rbuf_size - 4 - len;
-    if(remain){
-        memmove(conn->rbuf, &conn->rbuf[4+len], remain);
+    if (remain) {
+        memmove(conn->rbuf, &conn->rbuf[4 + len], remain);
     }
     conn->rbuf_size = remain;
     conn->state = STATE_RES;
