@@ -1,14 +1,14 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <set>
-#include "avltree.cpp"  // lazy
 
+#include <set>
+
+#include "avltree.cpp" // lazy
 
 #define container_of(ptr, type, member) ({                  \
     const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-    (type *)( (char *)__mptr - offsetof(type, member) );})
-
+    (type *)( (char *)__mptr - offsetof(type, member) ); })
 
 struct Data {
     AVLNode node;
@@ -33,7 +33,8 @@ static void add(Container &c, uint32_t val) {
     while (true) {
         AVLNode **from =
             (val < container_of(cur, Data, node)->val)
-            ? &cur->left : &cur->right;
+                ? &cur->left
+                : &cur->right;
         if (!*from) {
             *from = &data->node;
             data->node.parent = cur;
