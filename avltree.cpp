@@ -91,10 +91,45 @@ static AVLNode *avl_fix(AVLNode *node) {
         } else if (l + 2 == r) {
             node = avl_fix_right(node);
         }
-        if (!from){
+        if (!from) {
             return node;
         }
         *from = node;
         node = node->parent;
+    }
+}
+
+static AVLNode *avl_del(AVLNode *node) {
+    if (node->right == NULL) {
+        AVLNode *parent = node->parent;
+        if (node->left) {
+            node->left->parent = parent;
+        }
+        if (parent) {
+            (parent->left == node ? parent->left : parent->right) = node->left;
+            return avl_fix(parent);
+        } else {
+            return node->left;
+        }
+    } else {
+        AVLNode *victim = node->right;
+        while (victim->left) {
+            victim = victim->left;
+        }
+        AVLNode *root = avl_del(victim);
+        *victim = *node;
+        if (victim->left) {
+            victim->left->parent = victim;
+        }
+        if (victim->right) {
+            victim->right->parent = victim;
+        }
+        AVLNode *parent = node->parent;
+        if (parent) {
+            (parent->left == node ? parent->left : parent->right) = victim;
+            return root;
+        } else {
+            return victim;
+        }
     }
 }
