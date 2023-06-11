@@ -19,6 +19,7 @@
 
 #include "hashtable.h"
 #include "util.h"
+#include "avltree.h"
 
 using namespace std;
 

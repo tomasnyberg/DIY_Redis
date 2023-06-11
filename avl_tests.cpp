@@ -1,16 +1,13 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
 
 #include <set>
 
 #include "avltree.cpp" // lazy
 
 using namespace std;
-
-#define container_of(ptr, type, member) ({                  \
-    const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-    (type *)( (char *)__mptr - offsetof(type, member) ); })
 
 struct Data {
     AVLNode node;
@@ -153,4 +150,48 @@ static void test_remove(uint32_t sz) {
         container_verify(c, ref);
         dispose(c);
     }
+}
+
+int main() {
+    Container c;
+
+    // some quick tests
+    container_verify(c, {});
+    add(c, 123);
+    container_verify(c, {123});
+    assert(!del(c, 124));
+    assert(del(c, 123));
+    container_verify(c, {});
+    std::multiset<uint32_t> ref;
+    for (uint32_t i = 0; i < 1000; i += 3) { // Insertion
+        add(c, i);
+        ref.insert(i);
+        container_verify(c, ref);
+    }
+    for (uint32_t i = 0; i < 100; i++) {
+        uint32_t val = (uint32_t)rand() % 1000;
+        add(c, val);
+        ref.insert(val);
+        container_verify(c, ref);
+    }
+    for (uint32_t i = 0; i < 200; i++) { // Deletion
+        uint32_t val = (uint32_t)rand() % 1000;
+        auto it = ref.find(val);
+        if (it == ref.end()) {
+            assert(!del(c, val));
+        } else {
+            assert(del(c, val));
+            ref.erase(it);
+        }
+        container_verify(c, ref);
+    }
+    for (uint32_t i = 0; i < 200; ++i) { // Both insertion and deletion
+        test_insert(i);
+        test_insert_dup(i);
+        test_remove(i);
+    }
+
+    dispose(c);
+    cout << "AVL Tree passed all tests, OK" << endl;
+    return 0;
 }
