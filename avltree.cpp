@@ -1,10 +1,7 @@
-#define container_of(ptr, type, member) ({ \
-    const typeof(((type *)0)->member) *__mptr = (ptr); \
-    (type *)((char *)__mptr - offsetof(type, member)); })
-
 #include "avltree.h"
 
 #include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -129,6 +126,3 @@ static AVLNode *avl_del(AVLNode *node) {
         }
     }
 }
-
-
-

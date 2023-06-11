@@ -6,11 +6,11 @@
 #include <stdlib.h>
 
 struct AVLNode {
-    uint32_t depth;
-    uint32_t cnt;
-    AVLNode *left;
-    AVLNode *right;
-    AVLNode *parent;
+    uint32_t depth = 0;
+    uint32_t cnt = 0;
+    AVLNode *left = NULL;
+    AVLNode *right = NULL;
+    AVLNode *parent = NULL;
 };
 
 #define container_of(ptr, type, member) ({ \
