@@ -4,7 +4,7 @@ CFLAGS = -c -Wall
 LDFLAGS =
 SOURCES = server.cpp client.cpp util.cpp hashtable.cpp avltree.cpp avl_tests.cpp
 OBJECTS = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SOURCES))
-EXECUTABLES = $(BUILD_DIR)/server $(BUILD_DIR)/client $(BUILD_DIR)/test_avl
+EXECUTABLES = $(BUILD_DIR)/server $(BUILD_DIR)/client $(BUILD_DIR)/avl_tests
 
 all: $(EXECUTABLES)
 
