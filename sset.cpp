@@ -115,3 +115,20 @@ ZNode *zset_lookup(ZSet *zset, const char *name, size_t len) {
     key.len = len;
     HNode *found = hm_lookup(&zset->hmap, &key.node, &hcmp);
 }
+
+ZNode *zset_query(ZSet *zset, double score, const char *name, size_t len, int64_t offset) {
+    AVLNode *found = NULL;
+    AVLNode *cur = zset->tree;
+    while (cur) {
+        if (zless(cur, score, name, len)) {
+            cur = cur->right;
+        } else {
+            found = cur;
+            cur = cur->left;
+        }
+    }
+    if (found) {
+        found = avl_offset(found, offset);
+    }
+    return found ? container_of(found, ZNode, tree) : NULL;
+}

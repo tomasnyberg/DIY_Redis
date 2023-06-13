@@ -28,5 +28,6 @@ static AVLNode *avl_fix_left(AVLNode *root);
 static AVLNode *avl_fix_right(AVLNode *root);
 static AVLNode *avl_fix(AVLNode *node);
 static AVLNode *avl_del(AVLNode *node);
+static AVLNode *avl_offset(AVLNode *node, int64_t offset);
 
 #endif // AVLTREE_H
