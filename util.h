@@ -38,5 +38,6 @@ enum {
 
 int32_t read_full(int fd, char *buf, size_t n);
 int32_t write_all(int fd, const char *buf, size_t n);
+uint64_t str_hash(const uint8_t *str, size_t len);
 
 #endif
