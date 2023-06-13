@@ -1,16 +1,5 @@
 #include "avltree.h"
 
-#include <assert.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-
-static void avl_init(AVLNode *node) {
-    node->depth = 1;
-    node->cnt = 1;
-    node->left = node->right = node->parent = NULL;
-}
-
 static uint32_t avl_depth(AVLNode *node) {
     return node ? node->depth : 0;
 }
@@ -70,7 +59,7 @@ static AVLNode *avl_fix_right(AVLNode *root) {
     return rot_left(root);
 }
 
-static AVLNode *avl_fix(AVLNode *node) {
+AVLNode *avl_fix(AVLNode *node) {
     while (true) {
         avl_update(node);
         uint32_t l = avl_depth(node->left);
@@ -92,7 +81,7 @@ static AVLNode *avl_fix(AVLNode *node) {
     }
 }
 
-static AVLNode *avl_del(AVLNode *node) {
+AVLNode *avl_del(AVLNode *node) {
     if (node->right == NULL) {
         AVLNode *parent = node->parent;
         if (node->left) {

@@ -17,17 +17,14 @@ struct AVLNode {
     const typeof(((type *)0)->member) *__mptr = (ptr); \
     (type *)((char *)__mptr - offsetof(type, member)); })
 
-static void avl_init(AVLNode *node);
-static uint32_t avl_depth(AVLNode *node);
-static uint32_t avl_cnt(AVLNode *node);
-static uint32_t max(uint32_t lhs, uint32_t rhs);
-static void avl_update(AVLNode *node);
-static AVLNode *rot_left(AVLNode *node);
-static AVLNode *rot_right(AVLNode *node);
-static AVLNode *avl_fix_left(AVLNode *root);
-static AVLNode *avl_fix_right(AVLNode *root);
-static AVLNode *avl_fix(AVLNode *node);
-static AVLNode *avl_del(AVLNode *node);
-static AVLNode *avl_offset(AVLNode *node, int64_t offset);
+inline void avl_init(AVLNode *node) {
+    node->depth = 1;
+    node->cnt = 1;
+    node->left = node->right = node->parent = NULL;
+}
+
+AVLNode *avl_fix(AVLNode *node);
+AVLNode *avl_del(AVLNode *node);
+AVLNode *avl_offset(AVLNode *node, int64_t offset);
 
 #endif // AVLTREE_H
