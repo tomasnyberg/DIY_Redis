@@ -84,6 +84,10 @@ ZNode *zset_lookup(ZSet *zset, const char *name, size_t len) {
     key.name = name;
     key.len = len;
     HNode *found = hm_lookup(&zset->hmap, &key.node, &hcmp);
+    if (!found) {
+        return NULL;
+    }
+    return container_of(found, ZNode, hmap);
 }
 
 bool zset_add(ZSet *zset, const char *name, size_t len, double score) {
