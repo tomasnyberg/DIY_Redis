@@ -120,3 +120,21 @@ ZNode *zset_query(ZSet *zset, double score, const char *name, size_t len, int64_
     }
     return found ? container_of(found, ZNode, tree) : NULL;
 }
+
+void znode_del(ZNode *node) {
+    free(node);
+}
+
+static void tree_dispose(AVLNode *node) {
+    if (!node) {
+        return;
+    }
+    tree_dispose(node->left);
+    tree_dispose(node->right);
+    znode_del(container_of(node, ZNode, tree));
+}
+
+void zset_dispose(ZSet *zset) {
+    tree_dispose(zset->tree);
+    hm_destroy(&zset->hmap);
+}
