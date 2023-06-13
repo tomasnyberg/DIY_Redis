@@ -17,6 +17,24 @@ struct ZNode {
     char name[0];
 };
 
+struct HKey {
+    HNode node;
+    const char *name = NULL;
+    size_t len = 0;
+};
+
+static bool hcmp(HNode *node, HNode *key){
+    if(node->hcode != key->hcode){
+        return false;
+    }
+    ZNode *znode = container_of(node, ZNode, hmap);
+    HKey *hkey = container_of(key, HKey, node);
+    if(znode->len != hkey->len){
+        return false;
+    }
+    return 0 == memcmp(znode->name, hkey->name, znode->len);
+}
+
 static ZNode *znode_new(const char *name, size_t len, double score) {
     ZNode *node = (ZNode *)malloc(sizeof(ZNode) + len);
     assert(node);
@@ -57,4 +75,43 @@ static bool zless(AVLNode *lhs, double score, const char *name, size_t len) {
         return rv < 0;
     }
     return zl->len < len;
+}
+
+static bool zless(AVLNode *lhs, AVLNode *rhs){
+    ZNode *zr = container_of(rhs, ZNode, tree);
+    return zless(lhs, zr->score, zr->name, zr->len);
+}
+
+static void zset_update(ZSet *zset, ZNode *node, double score){
+    if (node->score == score) {
+        return;
+    }
+    zset->tree = avl_del(&node->tree);
+    node->score = score;
+    avl_init(&node->tree);
+    tree_add(zset, node);
+}
+
+bool zset_add(ZSet *zset, const char *name, size_t len, double score) {
+    ZNode *node = zset_lookup(zset, name, len);
+    if (node) {
+        zset_update(zset, node, score);
+        return false;
+    } else {
+        node = znode_new(name, len, score);
+        hm_insert(&zset->hmap, &node->hmap);
+        tree_add(zset, node);
+        return true;
+    }
+}
+
+ZNode *zset_lookup(ZSet *zset, const char *name, size_t len){
+    if(!zset->tree){
+        return NULL;
+    }
+    HKey key;
+    key.node.hcode = str_hash((uint8_t *)name, len);
+    key.name = name;
+    key.len = len;
+    HNode *found = hm_lookup(&zset->hmap, &key.node, &hcmp);
 }
