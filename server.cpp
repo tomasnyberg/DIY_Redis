@@ -20,6 +20,7 @@
 #include "hashtable.h"
 #include "util.h"
 #include "avltree.h"
+#include "sset.h"
 
 using namespace std;
 
@@ -36,10 +37,17 @@ struct Conn {
     uint8_t wbuf[4 + k_max_msg];
 };
 
+enum {
+    T_STR = 0,
+    T_SZET = 1,
+};
+
 struct Entry {
     struct HNode node;
     string key;
     string val;
+    uint32_t type;
+    ZSet *zset = NULL;
 };
 
 static struct {
