@@ -17,9 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "hashtable.h"
 #include "util.h"
-#include "avltree.h"
 #include "sset.h"
 
 using namespace std;

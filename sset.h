@@ -1,6 +1,9 @@
 #ifndef SSET_H
 #define SSET_H
 
+#include "avltree.h"
+#include "hashtable.h"
+
 struct ZSet {
     AVLNode *tree = NULL;
     HMap hmap;

@@ -1,7 +1,7 @@
 #include "sset.h"
 
 #include "avltree.h"
-#include "hashtable.h"
+// #include "hashtable.h"
 #include "util.h"
 
 static bool hcmp(HNode *node, HNode *key) {
@@ -28,6 +28,25 @@ static ZNode *znode_new(const char *name, size_t len, double score) {
     return node;
 }
 
+static bool zless(
+    AVLNode *lhs, double score, const char *name, size_t len)
+{
+    ZNode *zl = container_of(lhs, ZNode, tree);
+    if (zl->score != score) {
+        return zl->score < score;
+    }
+    int rv = memcmp(zl->name, name, zl->len < len ? zl->len : len);
+    if (rv != 0) {
+        return rv < 0;
+    }
+    return zl->len < len;
+}
+
+static bool zless(AVLNode *lhs, AVLNode *rhs) {
+    ZNode *zr = container_of(rhs, ZNode, tree);
+    return zless(lhs, zr->score, zr->name, zr->len);
+}
+
 static void tree_add(ZSet *zset, ZNode *node) {
     if (!zset->tree) {
         zset->tree = &node->tree;
@@ -46,23 +65,6 @@ static void tree_add(ZSet *zset, ZNode *node) {
     }
 }
 
-static bool zless(AVLNode *lhs, double score, const char *name, size_t len) {
-    ZNode *zl = container_of(lhs, ZNode, tree);
-    if (zl->score < score) {
-        return zl->score < score;
-    }
-    int rv = memcmp(zl->name, name, zl->len < len ? zl->len : len);
-    if (rv != 0) {
-        return rv < 0;
-    }
-    return zl->len < len;
-}
-
-static bool zless(AVLNode *lhs, AVLNode *rhs) {
-    ZNode *zr = container_of(rhs, ZNode, tree);
-    return zless(lhs, zr->score, zr->name, zr->len);
-}
-
 static void zset_update(ZSet *zset, ZNode *node, double score) {
     if (node->score == score) {
         return;
@@ -71,6 +73,17 @@ static void zset_update(ZSet *zset, ZNode *node, double score) {
     node->score = score;
     avl_init(&node->tree);
     tree_add(zset, node);
+}
+
+ZNode *zset_lookup(ZSet *zset, const char *name, size_t len) {
+    if (!zset->tree) {
+        return NULL;
+    }
+    HKey key;
+    key.node.hcode = str_hash((uint8_t *)name, len);
+    key.name = name;
+    key.len = len;
+    HNode *found = hm_lookup(&zset->hmap, &key.node, &hcmp);
 }
 
 bool zset_add(ZSet *zset, const char *name, size_t len, double score) {
@@ -86,16 +99,6 @@ bool zset_add(ZSet *zset, const char *name, size_t len, double score) {
     }
 }
 
-ZNode *zset_lookup(ZSet *zset, const char *name, size_t len) {
-    if (!zset->tree) {
-        return NULL;
-    }
-    HKey key;
-    key.node.hcode = str_hash((uint8_t *)name, len);
-    key.name = name;
-    key.len = len;
-    HNode *found = hm_lookup(&zset->hmap, &key.node, &hcmp);
-}
 
 ZNode *zset_query(ZSet *zset, double score, const char *name, size_t len, int64_t offset) {
     AVLNode *found = NULL;
